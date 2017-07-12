@@ -99,7 +99,11 @@ public class PaintView extends View {
     private void performEvent(MotionEvent event) {
 
         fingerDraw(event);
-        //circleDraw(event);
+
+
+        circleDraw(event);
+
+
     }
 
     private void fingerDraw(MotionEvent event) {
@@ -125,14 +129,21 @@ public class PaintView extends View {
             invalidate((int) mPathBounds.left, (int) mPathBounds.top, (int) mPathBounds.right, (int) mPathBounds.bottom);
 
         } else if (action == MotionEvent.ACTION_MOVE && id < MAX_FINGERS) {
-            for(int i = 0; i < cappedPointerCount; i++) {
-                if(mFingerPaths[i] != null) {
-                    int index = event.findPointerIndex(i);
-                    mFingerPaths[i].lineTo(event.getX(index), event.getY(index));
-                    mFingerPaths[i].computeBounds(mPathBounds, true);
-                    invalidate((int) mPathBounds.left, (int) mPathBounds.top, (int) mPathBounds.right, (int) mPathBounds.bottom);
+
+            try {
+                for(int i = 0; i < cappedPointerCount; i++) {
+                    if(mFingerPaths[i] != null) {
+                        int index = event.findPointerIndex(i);
+                        mFingerPaths[i].lineTo(event.getX(index), event.getY(index));
+                        mFingerPaths[i].computeBounds(mPathBounds, true);
+                        invalidate((int) mPathBounds.left, (int) mPathBounds.top, (int) mPathBounds.right, (int) mPathBounds.bottom);
+                    }
                 }
+            } catch (IllegalArgumentException e) {
+
             }
+
+
         }
 
 
@@ -153,71 +164,84 @@ public class PaintView extends View {
         float y = event.getY(actionIndex);
 
 
-
-        if ((action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN)) {
-
-
-            if (id == 0) {
-                mShapePath = new Path();
-                mStartPoint = new Point((int)x, (int)y);
-                mEndPoint = new Point((int)x, (int)y);
-
-
-            } else if (id == 1) {
-                mEndPoint.x = (int)x;
-                mEndPoint.y = (int)y;
-            }
-
-            mShapePath.reset();
-            mShapePath.addCircle(mStartPoint.x, mStartPoint.y ,distanceBetweenTwoPoints(mStartPoint, mEndPoint), Path.Direction.CW);
-
-
-
-
-
-        } else if ((action == MotionEvent.ACTION_POINTER_UP || action == MotionEvent.ACTION_UP)) {
-            if (id == 0) {
-
-                    mStartPoint.x = (int)x;
-                    mStartPoint.y = (int)y;
-
-            } else if (id == 1) {
-                mEndPoint.x = (int)x;
-                mEndPoint.y = (int)y;
-            }
-
-            mShapePath.reset();
-            mShapePath.addCircle(mStartPoint.x, mStartPoint.y ,distanceBetweenTwoPoints(mStartPoint, mEndPoint), Path.Direction.CW);
-            mShapePath.computeBounds(mPathBounds, true);
-            invalidate((int) mPathBounds.left, (int) mPathBounds.top, (int) mPathBounds.right, (int) mPathBounds.bottom);
-            mCompletedPaths.add(mShapePath);
-            //mShapePath = null;
-
-
-
-
-        } else if(action == MotionEvent.ACTION_MOVE) {
-            if (id == 0) {
-
-
-
-                mStartPoint.x = (int)x;
-                mStartPoint.y = (int)y;
-
-            } else if (id == 1) {
-                mEndPoint.x = (int)x;
-                mEndPoint.y = (int)y;
-            }
-
-            mShapePath.reset();
-            mShapePath.addCircle(mStartPoint.x, mStartPoint.y ,distanceBetweenTwoPoints(mStartPoint, mEndPoint), Path.Direction.CW);
-            mShapePath.computeBounds(mPathBounds, true);
-            invalidate((int) mPathBounds.left, (int) mPathBounds.top, (int) mPathBounds.right, (int) mPathBounds.bottom);
+        if (mShapePath == null) {
+            mShapePath = new Path();
+            mStartPoint = new Point((int)x, (int)y);
+            mEndPoint = new Point((int)x, (int)y);
         }
 
+        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN || action == MotionEvent.ACTION_MOVE) {
+            if (pointerCount == 1) {
+
+                try {
+
+                    int index = event.findPointerIndex(0);
+                    mStartPoint.x = (int)event.getX(index);
+                    mStartPoint.y = (int)event.getY(index);
+
+                } catch (IllegalArgumentException e) {
+
+
+                    try {
+                        int index = event.findPointerIndex(1);
+                        mStartPoint.x = (int)event.getX(index);
+                        mStartPoint.y = (int)event.getY(index);
+
+                    } catch (IllegalArgumentException es) {
+
+
+                    }
+                }
 
 
 
+
+            } else if (pointerCount > 1) {
+
+                try {
+                    int index = event.findPointerIndex(0);
+                    mStartPoint.x = (int)event.getX(index);
+                    mStartPoint.y = (int)event.getY(index);
+                } catch (IllegalArgumentException e) {
+
+
+                }
+
+                try {
+                    int index = event.findPointerIndex(1);
+                    mEndPoint.x = (int)event.getX(index);
+                    mEndPoint.y = (int)event.getY(index);
+                } catch (IllegalArgumentException e) {
+
+
+                }
+
+
+                mStartPoint = centerOfLine(mStartPoint, mEndPoint);
+            }
+        } // end if
+
+
+        mShapePath.reset();
+        mShapePath.addCircle(mStartPoint.x, mStartPoint.y ,distanceBetweenTwoPoints(mStartPoint, mEndPoint), Path.Direction.CW);
+        mShapePath.computeBounds(mPathBounds, true);
+        invalidate((int) mPathBounds.left, (int) mPathBounds.top, (int) mPathBounds.right, (int) mPathBounds.bottom);
+
+
+
+
+
+
+        if ((action == MotionEvent.ACTION_POINTER_UP || action == MotionEvent.ACTION_UP)) {
+            System.out.println("id: "+id);
+            System.out.println("count: "+pointerCount);
+            if (id >= 0 && pointerCount == 1) {
+                mCompletedPaths.add(mShapePath);
+                mShapePath = null;
+            }
+
+
+        }
 
 
 
@@ -225,6 +249,13 @@ public class PaintView extends View {
     }
     private float distanceBetweenTwoPoints(Point a, Point b) {
         return (float) Math.sqrt((a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y));
+    }
+
+    private Point centerOfLine(Point a, Point d) {
+        Point c = new Point(a.x, d.y);
+        Point b = new Point(d.x, a.y);
+
+        return new Point(b.x - (b.x - a.x) / 2, c.y - (c.y - a.y) / 2);
     }
 
     @Override
